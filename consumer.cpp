@@ -1,9 +1,9 @@
 #include <pthread.h>
 #include <semaphore.h>
-//#include <sys/mman.h>
+#include <sys/mman.h>
 #include <unistd.h>
 #include <iostream>
-
+#include <fcntl.h>
 #include "sharedData.hpp"
 
 void consumeItems(void* arg){
@@ -34,7 +34,7 @@ int main(){
 
      auto sm = static_cast<SharedData*>(ptr);
 
-     consumeItems(shm);
+     consumeItems(sm);
      munmap(ptr, sizeof(SharedData));
      close(shm);
      return 0;

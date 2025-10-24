@@ -1,15 +1,16 @@
 #include <pthread.h>
 #include <semaphore.h>
-//#include <sys/mman.h>
+#include <sys/mman.h>
 #include <unistd.h>
 #include <iostream>
-
+#include <fcntl.h>
 #include "sharedData.hpp"
+#include <cstring>
 
 //Function to produce items into memory
 void produceItems(void* arg){
      SharedData* sm = static_cast<SharedData*>(arg);
-     int item;
+     int item = 0;
      while(true){
           item++;
           sem_wait(&sm->empty); //Check if there is an empty spot
@@ -19,8 +20,8 @@ void produceItems(void* arg){
           sm->buffer[sm->count] = item; //Place item into buffer
           sm->count += 1; //increment to next buffer space
 
-          std::cout << "Produced: " << item;
-          std::cout << " Count: " << sm->count;
+          std::cout << "Produced: " << item << std::endl;
+          std::cout << " Count: " << sm->count << std::endl;
 
           //CRITICAL SECTION DONE ITEMS ADDED
           sem_post(&sm->mutex); //Unlocked
@@ -31,14 +32,25 @@ void produceItems(void* arg){
 int main(){
      //Create shared memory
      int shm_fc;
-     shm_fc = shm_open("MEMPC", O_CREAT | O_RDWR, 0666); //Creates shared memory object
-     ftruncate(shm_fc, MEM_SIZE); //Reduces size of shared memory to 1000 bytes
+     shm_fc = shm_open("/MEMPC", O_CREAT | O_RDWR, 0666); //Creates shared memory 
+	if (shm_fc == -1) {
+		std::cout << "FAILED TO RUN SHM_OPEN\n";
+	}
+
+     ftruncate(shm_fc, sizeof(SharedData)); //Reduces size of shared memory to 1000 bytes
+	if(ftruncate(shm_fc, sizeof(SharedData)) == -1){
+		std::cout << "FAILED TO TRIM DATA\n";
+	}
 
      void* ptr = mmap(nullptr, sizeof(SharedData), PROT_WRITE | PROT_READ, MAP_SHARED, shm_fc, 0); //Pointer to shared memory object
-
+	if (ptr == MAP_FAILED) {
+	std::cout << "COULD NOT PROPERLY MAP POINTER\n";
+	}
      
      auto sm = static_cast<SharedData*>(ptr);
-
+	
+     //Memory Protection
+     memset(sm, 0, sizeof(SharedData));
      //Create semaphore locks
      sem_init(&sm->mutex,1 , 1);
      sem_init(&sm->full, 1, 0);
@@ -46,5 +58,8 @@ int main(){
 
      //Produce items
      produceItems(sm);
+
+     munmap(ptr, sizeof(SharedData));
+     close(shm_fc);
      return 0;
 }
