@@ -11,6 +11,8 @@ struct SharedData {
      sem_t mutex;
      sem_t full;
      sem_t empty;
+     sem_t canProduce;
+     sem_t canConsume;
 };
 
 #endif

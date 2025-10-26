@@ -12,21 +12,23 @@ void produceItems(void* arg){
      SharedData* sm = static_cast<SharedData*>(arg);
      int item = 0;
      while(true){
-          item++;
-          sem_wait(&sm->empty); //Check if there is an empty spot
-          sem_wait(&sm->mutex); //Ensures we have lock and only produces CR can run
-          //CODE AFTER sem_wait will run once produce has verified above 2 statements
+	  sem_wait(&sm->canProduce);
 
-          sm->buffer[sm->count] = item; //Place item into buffer
-          sm->count += 1; //increment to next buffer space
+	  while (sm->count < BUFFER_SIZE) {
+               sem_wait(&sm->empty);
+	       sem_wait(&sm->mutex);
 
-          std::cout << "Produced: " << item << std::endl;
-          std::cout << " Count: " << sm->count << std::endl;
+	       sm->buffer[sm->count] = ++item;
+	       sm->count++;
+	       std::cout << "Produced: " << item << " Count: " << sm->count << std::endl;
 
-          //CRITICAL SECTION DONE ITEMS ADDED
-          sem_post(&sm->mutex); //Unlocked
-          sem_post(&sm->full); //Items added to shared memory
+	       sem_post(&sm->mutex);
+	       sem_post(&sm->full);
+          }
+     std::cout << "Done producing handing to consumer" << std::endl;
+     sem_post(&sm->canConsume);
      }
+     
 }
 
 int main(){
@@ -55,7 +57,8 @@ int main(){
      sem_init(&sm->mutex,1 , 1);
      sem_init(&sm->full, 1, 0);
      sem_init(&sm->empty, 1, BUFFER_SIZE);
-
+     sem_init(&sm->canProduce,1,1);
+     sem_init(&sm->canConsume,1, 0);
      //Produce items
      produceItems(sm);
 

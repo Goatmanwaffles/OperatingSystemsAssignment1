@@ -10,20 +10,23 @@ void consumeItems(void* arg){
      SharedData* sm = static_cast<SharedData*>(arg);
      int item;
      while(true){
-          sem_wait(&sm->full); //Check if we have items to consume
-          sem_wait(&sm->mutex); //Ensure we have lock and only consume CR can run
-          //CODE AFTER sem_wait will run once consume has verified above 2 statements
+	  sem_wait(&sm->canConsume);
+	  while(sm->count > 0){
+               sem_wait(&sm->full);
+	       sem_wait(&sm->mutex);
 
-          
-          sm->count -= 1;
-          item = sm->buffer[sm->count];
+	       sm->count -= 1;
+               item = sm->buffer[sm->count];
 
-          std::cout << "Consumed: " << item;
-          std::cout << " Count: " << sm->count <<"\n";
+	       std::cout << "Consumed: " << item << " Count: " << sm->count << std::endl;
 
-          //CR DONE REMOVE LOCKS
-          sem_post(&sm->mutex);
-          sem_post(&sm->empty);
+	       sem_post(&sm->mutex);
+	       sem_post(&sm->empty);
+	  }
+	  sleep(2);
+     
+     std::cout << "Buffer Consumed. Handing to Producer" << std::endl;
+     sem_post(&sm->canProduce);
      }
 }
 
